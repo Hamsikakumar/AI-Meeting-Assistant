@@ -1,6 +1,7 @@
 # Backend (Java/Maven)
 backend/target/
 backend/.mvn/
+backend/uploads/
 *.class
 
 # Frontend (Node/Vite)
