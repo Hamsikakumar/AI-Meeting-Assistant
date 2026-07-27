@@ -29,4 +29,7 @@ public class Meeting {
     private MeetingStatus status = MeetingStatus.UPLOADED;
 
     private Instant createdAt = Instant.now();
+
+    @Column(columnDefinition = "TEXT")
+    private String transcript;
 }

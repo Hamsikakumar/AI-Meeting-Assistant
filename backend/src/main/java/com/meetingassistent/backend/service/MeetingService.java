@@ -16,6 +16,8 @@ public class MeetingService {
     @Autowired private MeetingRepository meetingRepository;
     @Autowired private FileStorageService fileStorageService;
 
+    @Autowired private TranscriptionService transcriptionService;
+
     public MeetingResponse uploadMeeting(MultipartFile file, User user) {
         String storedFilename = fileStorageService.storeFile(file);
 
@@ -25,6 +27,8 @@ public class MeetingService {
         meeting.setStoredFilename(storedFilename);
 
         meetingRepository.save(meeting);
+
+        transcriptionService.transcribeMeeting(meeting.getId(), storedFilename);
 
         return toResponse(meeting);
     }
@@ -38,10 +42,11 @@ public class MeetingService {
 
     private MeetingResponse toResponse(Meeting meeting) {
         return new MeetingResponse(
-                meeting.getId(),
-                meeting.getOriginalFilename(),
-                meeting.getStatus(),
-                meeting.getCreatedAt()
+            meeting.getId(),
+            meeting.getOriginalFilename(),
+            meeting.getStatus(),
+            meeting.getCreatedAt(),
+            meeting.getTranscript()
         );
     }
 }

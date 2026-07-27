@@ -7,5 +7,6 @@ public record MeetingResponse(
     Long id,
     String originalFilename,
     MeetingStatus status,
-    Instant createdAt
+    Instant createdAt,
+    String transcript
 ) {}
