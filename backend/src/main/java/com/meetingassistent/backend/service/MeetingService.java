@@ -30,23 +30,26 @@ public class MeetingService {
 
         transcriptionService.transcribeMeeting(meeting.getId(), storedFilename);
 
-        return toResponse(meeting);
+        return toResponseDto(meeting);
     }
 
     public List<MeetingResponse> getMeetingsForUser(User user) {
         return meetingRepository.findByUserOrderByCreatedAtDesc(user)
                 .stream()
-                .map(this::toResponse)
+                .map(this::toResponseDto)
                 .toList();
     }
 
-    private MeetingResponse toResponse(Meeting meeting) {
+    public MeetingResponse toResponseDto(Meeting meeting) {
         return new MeetingResponse(
             meeting.getId(),
             meeting.getOriginalFilename(),
             meeting.getStatus(),
             meeting.getCreatedAt(),
-            meeting.getTranscript()
+            meeting.getTranscript(),
+            meeting.getSummary(),
+            meeting.getActionItems(),
+            meeting.getDeadlines()
         );
     }
 }

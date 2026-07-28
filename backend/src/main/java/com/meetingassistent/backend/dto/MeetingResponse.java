@@ -8,5 +8,8 @@ public record MeetingResponse(
     String originalFilename,
     MeetingStatus status,
     Instant createdAt,
-    String transcript
+    String transcript,
+    String summary,
+    String actionItems,
+    String deadlines
 ) {}

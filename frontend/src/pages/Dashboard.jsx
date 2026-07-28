@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { uploadMeeting, getMeetings } from "../api/meetings";
+import { uploadMeeting, getMeetings, summarizeMeeting } from "../api/meetings";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -12,13 +12,13 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+  const [summarizingId, setSummarizingId] = useState(null);
 
   const pollingRef = useRef(null);
 
   useEffect(() => {
     loadMeetings();
 
-    // Poll every 5 seconds to catch status changes (PROCESSING -> COMPLETED)
     pollingRef.current = setInterval(() => {
       loadMeetings();
     }, 5000);
@@ -50,6 +50,19 @@ export default function Dashboard() {
       setError(err.message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleSummarize(id) {
+    setSummarizingId(id);
+    setError("");
+    try {
+      await summarizeMeeting(id);
+      await loadMeetings();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSummarizingId(null);
     }
   }
 
@@ -144,6 +157,28 @@ export default function Dashboard() {
                 <p style={{ marginTop: 10, fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
                   {m.transcript}
                 </p>
+              )}
+
+              {m.status === "COMPLETED" && (
+                <div style={{ marginTop: 10 }}>
+                  {!m.summary ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSummarize(m.id);
+                      }}
+                      disabled={summarizingId === m.id}
+                    >
+                      {summarizingId === m.id ? "Generating summary..." : "Generate Summary"}
+                    </button>
+                  ) : (
+                    <div style={{ background: "#f7f7f7", padding: 10, borderRadius: 6 }}>
+                      <p><strong>Summary:</strong> {m.summary}</p>
+                      <p><strong>Action Items:</strong> {m.actionItems}</p>
+                      <p><strong>Deadlines:</strong> {m.deadlines}</p>
+                    </div>
+                  )}
+                </div>
               )}
             </li>
           ))}

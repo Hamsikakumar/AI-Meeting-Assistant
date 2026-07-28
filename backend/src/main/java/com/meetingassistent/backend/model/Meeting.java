@@ -32,4 +32,13 @@ public class Meeting {
 
     @Column(columnDefinition = "TEXT")
     private String transcript;
+
+    @Column(columnDefinition = "TEXT")
+    private String summary;
+
+    @Column(columnDefinition = "TEXT")
+    private String actionItems;
+
+    @Column(columnDefinition = "TEXT")
+    private String deadlines;
 }

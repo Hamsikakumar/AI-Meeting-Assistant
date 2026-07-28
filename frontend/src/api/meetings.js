@@ -37,3 +37,19 @@ export async function getMeetings() {
 
   return res.json();
 }
+
+export async function summarizeMeeting(id) {
+  const res = await fetch(`${API_BASE}/meetings/${id}/summarize`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Summarization failed");
+  }
+
+  return res.json();
+}
