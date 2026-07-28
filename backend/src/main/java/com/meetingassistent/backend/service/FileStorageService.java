@@ -18,6 +18,10 @@ public class FileStorageService {
     private String uploadDir;
 
     public String storeFile(MultipartFile file) {
+        long maxSizeBytes = 25L * 1024 * 1024; // 25MB, matching Groq's limit
+            if (file.getSize() > maxSizeBytes) {
+                throw new RuntimeException("File too large. Maximum size is 25MB.");
+        }
         try {
             Path uploadPath = Paths.get(uploadDir);
             if (!Files.exists(uploadPath)) {

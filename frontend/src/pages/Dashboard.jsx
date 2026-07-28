@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [summarizingId, setSummarizingId] = useState(null);
 
   const pollingRef = useRef(null);
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB, matches backend/Groq limit
 
   useEffect(() => {
     loadMeetings();
@@ -97,10 +98,25 @@ export default function Dashboard() {
       <h3>Upload a Meeting Recording</h3>
       <form onSubmit={handleUpload}>
         <input
-          type="file"
-          accept="audio/*,video/*"
-          onChange={(e) => setSelectedFile(e.target.files[0])}
-        />
+         type="file"
+        accept="audio/*,video/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          if (file.size > MAX_FILE_SIZE) {
+            setError(
+              `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 25MB.`
+            );
+            setSelectedFile(null);
+            e.target.value = ""; // reset the input so the same oversized file can be re-picked after fixing
+            return;
+          }
+
+          setError("");
+          setSelectedFile(file);
+        }}
+      />
         <button type="submit" disabled={!selectedFile || uploading} style={{ marginLeft: 12 }}>
           {uploading ? "Uploading..." : "Upload"}
         </button>

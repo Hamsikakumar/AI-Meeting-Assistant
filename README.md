@@ -11,7 +11,7 @@ An AI-powered meeting assistant that transcribes recordings, generates summaries
 - [x] **Phase 1 — Authentication** (complete)
 - [x] **Phase 2 — File Upload** (complete)
 - [x] **Phase 3 — Transcription Pipeline** (complete)
-- [ ] Phase 4 — LLM Processing (summaries, action items, deadlines)
+- [x] **Phase 4 — LLM Processing** (complete)
 - [ ] Phase 5 — Core UI (meeting history, search)
 - [ ] Phase 6 — Team & Sharing Features
 - [ ] Phase 7 — Polish & Deployment
@@ -195,6 +195,43 @@ groq.api.key=<your key>
 
 ---
 
+## What Was Built in Phase 4 — LLM Processing (Summaries, Action Items, Deadlines)
+
+### Design decision
+
+Summarization is **on-demand** (user clicks "Generate Summary"), not automatic after transcription. This gives control over when the LLM is called and keeps API usage intentional rather than automatic for every upload.
+
+### Backend (new/changed files)
+
+| File | Purpose |
+|---|---|
+| `model/Meeting.java` (updated) | Added `summary`, `actionItems`, `deadlines` fields (all `TEXT` columns) |
+| `service/SummaryService.java` | Sends the transcript to Groq's LLM (Llama 3.3 70B) with a structured prompt, parses the plain-text response into three fields |
+| `controller/MeetingController.java` (updated) | Added `POST /api/meetings/{id}/summarize` |
+| `service/MeetingService.java` (updated) | `toResponse` made public (`toResponseDto`) so the controller can reuse it after summarization |
+| `dto/MeetingResponse.java` (updated) | Now includes `summary`, `actionItems`, `deadlines` |
+
+**How the prompt works:** rather than asking for JSON (which smaller/faster models can format inconsistently), the prompt asks for a simple marker-based format:
+```
+SUMMARY: <text>
+ACTION_ITEMS: <text>
+DEADLINES: <text>
+```
+The service then extracts each section by finding these markers as substrings — simple, robust, and easy to debug if the model's output ever looks off.
+
+**Same LLM provider as transcription:** uses Groq's free tier again (`llama-3.3-70b-versatile`), keeping the whole AI pipeline on one provider/API key.
+
+### Frontend (updated files)
+
+| File | Purpose |
+|---|---|
+| `api/meetings.js` (updated) | Added `summarizeMeeting(id)` |
+| `pages/Dashboard.jsx` (updated) | "Generate Summary" button appears on completed meetings without a summary yet; once generated, displays summary/action items/deadlines inline in a highlighted box |
+
+**Verified working:** tested on a real transcript — the LLM correctly identified there were no action items or deadlines in a tutorial-style recording, rather than hallucinating generic filler content. Good sign the prompt is working as intended.
+
+---
+
 ## Environment / Config Notes
 
 - **Database name:** `meeting_assistant`
@@ -217,14 +254,13 @@ Issues actually encountered and fixed while building this phase, in case they re
 7. **PowerShell `-Form` parameter not found** — caused by using old Windows PowerShell 5.1, which lacks `Invoke-RestMethod -Form` (added in PowerShell 7+). Worked around this using `curl.exe` instead of upgrading PowerShell.
 8. **OpenAI `429 Too Many Requests` on first-ever request** — misleading error; actually meant no billing/credits on the account, not literal rate limiting. Since a funded OpenAI account wasn't available, switched to Groq's free-tier Whisper API instead (see Phase 3 section above).
 9. **Stray/duplicated code after AI-assisted edits** — a couple of file edits accidentally left duplicated class bodies or fields placed outside the class braces, causing confusing "class expected" compiler errors. Lesson: after any AI-suggested edit, briefly re-view the whole file before running, especially for short files where a full replace is safer than a partial edit.
+10. **One malformed/empty file cascading into 25+ unrelated compiler errors** — an incorrectly saved `SummaryService.java` caused the compiler to abort early, which meant Lombok's `@Getter`/`@Setter` annotations never got processed for other classes, producing a wall of unrelated "cannot find symbol getX/setX" errors across completely different files. Lesson: when a huge batch of unrelated-looking errors appears at once, check for one bad/empty file first rather than trying to fix each error individually — a single root cause is often the real culprit.
 
 ---
 
-## Next Steps (Phase 4 Preview)
+## Next Steps (Phase 5 Preview)
 
-- Send completed transcripts to an LLM (Groq/Llama or similar) to generate:
-  - Meeting summary
-  - Action items list
-  - Key deadlines mentioned
-- Store these structured results alongside the transcript
-- Display summary/action items/deadlines in the Dashboard UI
+- Meeting history page (list/search/filter past meetings properly, beyond the simple dashboard list)
+- Search meetings by filename, date, or transcript content
+- Export meeting notes (summary + action items + deadlines) as PDF
+- Consider basic team/workspace features if time permits

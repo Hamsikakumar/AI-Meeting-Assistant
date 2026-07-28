@@ -63,6 +63,11 @@ public class TranscriptionService {
             meeting.setStatus(MeetingStatus.COMPLETED);
             meetingRepository.save(meeting);
 
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            meeting.setStatus(MeetingStatus.FAILED);
+            meetingRepository.save(meeting);
+            System.err.println("Transcription failed for meeting " + meetingId + ": " 
+                    + e.getStatusCode() + " - " + e.getResponseBodyAsString());
         } catch (Exception e) {
             meeting.setStatus(MeetingStatus.FAILED);
             meetingRepository.save(meeting);

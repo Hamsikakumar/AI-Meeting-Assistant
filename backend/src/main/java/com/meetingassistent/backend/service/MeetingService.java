@@ -19,6 +19,11 @@ public class MeetingService {
     @Autowired private TranscriptionService transcriptionService;
 
     public MeetingResponse uploadMeeting(MultipartFile file, User user) {
+        long maxSizeBytes = 25L * 1024 * 1024; // 25MB, Groq's free-tier limit
+        if (file.getSize() > maxSizeBytes) {
+            throw new RuntimeException("File too large. Maximum size is 25MB for transcription.");
+        }
+
         String storedFilename = fileStorageService.storeFile(file);
 
         Meeting meeting = new Meeting();
