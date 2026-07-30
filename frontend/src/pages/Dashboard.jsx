@@ -2,10 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { uploadMeeting, getMeetings, summarizeMeeting } from "../api/meetings";
+import { createTeam, joinTeam, getMyTeam, leaveTeam } from "../api/teams";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [team, setTeam] = useState(null);
+  const [teamNameInput, setTeamNameInput] = useState("");
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [teamError, setTeamError] = useState("");
 
   const [meetings, setMeetings] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -35,6 +41,18 @@ export default function Dashboard() {
       setError(err.message);
     }
   }
+  useEffect(() => {
+    loadTeam();
+  }, []);
+
+  async function loadTeam() {
+    try {
+      const data = await getMyTeam();
+      setTeam(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function handleUpload(e) {
     e.preventDefault();
@@ -51,6 +69,42 @@ export default function Dashboard() {
       setError(err.message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleCreateTeam(e) {
+    e.preventDefault();
+    setTeamError("");
+    try {
+      const newTeam = await createTeam(teamNameInput);
+      setTeam(newTeam);
+      setTeamNameInput("");
+      await loadMeetings();
+    } catch (err) {
+      setTeamError(err.message);
+    }
+  }
+
+  async function handleJoinTeam(e) {
+    e.preventDefault();
+    setTeamError("");
+    try {
+      const joinedTeam = await joinTeam(inviteCodeInput);
+      setTeam(joinedTeam);
+      setInviteCodeInput("");
+      await loadMeetings();
+    } catch (err) {
+      setTeamError(err.message);
+    }
+  }
+
+  async function handleLeaveTeam() {
+    try {
+      await leaveTeam();
+      setTeam(null);
+      await loadMeetings();
+    } catch (err) {
+      setTeamError(err.message);
     }
   }
 
@@ -94,6 +148,38 @@ export default function Dashboard() {
       </div>
 
       <hr style={{ margin: "24px 0" }} />
+      <hr style={{ margin: "24px 0" }} />
+
+      <h3>Team</h3>
+      {team ? (
+        <div style={{ background: "#f0f7ff", padding: 12, borderRadius: 6 }}>
+          <p><strong>{team.name}</strong></p>
+          <p>Invite code: <code>{team.inviteCode}</code> (share this with teammates)</p>
+          <button onClick={handleLeaveTeam}>Leave Team</button>
+        </div>
+      ) : (
+      <div>
+        <form onSubmit={handleCreateTeam} style={{ marginBottom: 10 }}>
+          <input
+            type="text"
+            placeholder="Team name"
+            value={teamNameInput}
+            onChange={(e) => setTeamNameInput(e.target.value)}
+          />
+          <button type="submit" style={{ marginLeft: 8 }}>Create Team</button>
+        </form>
+        <form onSubmit={handleJoinTeam}>
+          <input
+            type="text"
+            placeholder="Invite code"
+            value={inviteCodeInput}
+            onChange={(e) => setInviteCodeInput(e.target.value)}
+          />
+          <button type="submit" style={{ marginLeft: 8 }}>Join Team</button>
+        </form>
+      </div>
+    )}
+    {teamError && <p style={{ color: "red" }}>{teamError}</p>}
 
       <h3>Upload a Meeting Recording</h3>
       <form onSubmit={handleUpload}>

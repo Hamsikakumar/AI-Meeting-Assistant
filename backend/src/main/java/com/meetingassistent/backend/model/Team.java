@@ -6,30 +6,20 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "users")
+@Table(name = "teams")
 @Getter
 @Setter
-public class User {
+public class Team {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String email;
-
-    @Column(nullable = false)
-    private String password;
-
     @Column(nullable = false)
     private String name;
 
-    @Enumerated(EnumType.STRING)
-    private Role role = Role.USER;
+    @Column(nullable = false, unique = true)
+    private String inviteCode;
 
     private Instant createdAt = Instant.now();
-
-    @ManyToOne
-    @JoinColumn(name = "team_id", nullable = true)
-    private Team team;
 }

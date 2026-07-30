@@ -41,4 +41,8 @@ public class Meeting {
 
     @Column(columnDefinition = "TEXT")
     private String deadlines;
+
+    @ManyToOne
+    @JoinColumn(name = "team_id", nullable = true)
+    private Team team;
 }

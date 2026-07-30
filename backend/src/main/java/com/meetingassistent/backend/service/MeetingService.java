@@ -19,17 +19,13 @@ public class MeetingService {
     @Autowired private TranscriptionService transcriptionService;
 
     public MeetingResponse uploadMeeting(MultipartFile file, User user) {
-        long maxSizeBytes = 25L * 1024 * 1024; // 25MB, Groq's free-tier limit
-        if (file.getSize() > maxSizeBytes) {
-            throw new RuntimeException("File too large. Maximum size is 25MB for transcription.");
-        }
-
         String storedFilename = fileStorageService.storeFile(file);
 
         Meeting meeting = new Meeting();
         meeting.setUser(user);
         meeting.setOriginalFilename(file.getOriginalFilename());
         meeting.setStoredFilename(storedFilename);
+        meeting.setTeam(user.getTeam()); // null if user isn't in a team — that's fine
 
         meetingRepository.save(meeting);
 
@@ -39,10 +35,26 @@ public class MeetingService {
     }
 
     public List<MeetingResponse> getMeetingsForUser(User user) {
-        return meetingRepository.findByUserOrderByCreatedAtDesc(user)
-                .stream()
-                .map(this::toResponseDto)
-                .toList();
+        List<Meeting> ownMeetings = meetingRepository.findByUserOrderByCreatedAtDesc(user);
+
+        List<Meeting> teamMeetings = user.getTeam() != null
+                ? meetingRepository.findByTeamOrderByCreatedAtDesc(user.getTeam())
+                : List.of();
+
+    // Combine, removing duplicates (a user's own meeting uploaded to their team would appear in both lists)
+        java.util.Set<Long> seenIds = new java.util.HashSet<>();
+        List<Meeting> combined = new java.util.ArrayList<>();
+
+        for (Meeting m : ownMeetings) {
+            if (seenIds.add(m.getId())) combined.add(m);
+        }
+        for (Meeting m : teamMeetings) {
+            if (seenIds.add(m.getId())) combined.add(m);
+        }
+
+        combined.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+        return combined.stream().map(this::toResponseDto).toList();
     }
 
     public MeetingResponse toResponseDto(Meeting meeting) {

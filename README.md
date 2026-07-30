@@ -12,6 +12,7 @@ An AI-powered meeting assistant that transcribes recordings, generates summaries
 - [x] **Phase 2 — File Upload** (complete)
 - [x] **Phase 3 — Transcription Pipeline** (complete)
 - [x] **Phase 4 — LLM Processing** (complete)
+- [x] **Phase 5 — Team Workspace** (complete)
 - [ ] Phase 5 — Core UI (meeting history, search)
 - [ ] Phase 6 — Team & Sharing Features
 - [ ] Phase 7 — Polish & Deployment
@@ -232,6 +233,43 @@ The service then extracts each section by finding these markers as substrings �
 
 ---
 
+## What Was Built in Phase 5 — Team Workspace
+
+### Design decisions
+
+- **One team per user** (not multi-team membership like Slack) — keeps permission logic simple for a first implementation.
+- **Invite codes, not email invites** — no email-sending infrastructure needed. Codes are the first 8 characters of a UUID, uppercased (e.g. `A87B4A5B`), short enough to share easily.
+- **Backward compatible** — `team_id` is nullable on both `User` and `Meeting`. Users not in a team keep working exactly as before (private meetings only).
+
+### Backend (new/changed files)
+
+| File | Purpose |
+|---|---|
+| `model/Team.java` | Team entity (id, name, inviteCode, createdAt) |
+| `model/User.java` (updated) | Added optional `team` field |
+| `model/Meeting.java` (updated) | Added optional `team` field |
+| `repository/TeamRepository.java` | `findByInviteCode` |
+| `repository/MeetingRepository.java` (updated) | Added `findByTeamOrderByCreatedAtDesc` |
+| `dto/TeamResponse.java`, `CreateTeamRequest.java`, `JoinTeamRequest.java` | Request/response shapes |
+| `service/TeamService.java` | Create team, join team, get current team, leave team |
+| `service/MeetingService.java` (updated) | Upload now sets `meeting.setTeam(user.getTeam())`; `getMeetingsForUser` now merges **own** meetings with **team** meetings (de-duplicated by ID, re-sorted by date) |
+| `controller/TeamController.java` | `POST /api/teams/create`, `POST /api/teams/join`, `GET /api/teams/me`, `POST /api/teams/leave` |
+
+**Key mechanic:** a meeting uploaded by a user in a team gets both `user_id` (the uploader) and `team_id` (their team) set. `getMeetingsForUser` fetches by `user_id` OR `team_id` and merges the results, so:
+- A meeting appears once even though it could theoretically match both queries
+- Any teammate sees all meetings uploaded by anyone on the team, not just their own
+
+### Frontend (new/changed files)
+
+| File | Purpose |
+|---|---|
+| `api/teams.js` | `createTeam`, `joinTeam`, `getMyTeam`, `leaveTeam` |
+| `pages/Dashboard.jsx` (updated) | New "Team" section: shows current team + invite code + Leave button if in a team, or Create/Join forms if not |
+
+**Verified working:** created a team under one account, joined it from a completely separate account using the invite code, and confirmed the second account could see a meeting uploaded by the first — through the real browser UI, not just API testing.
+
+---
+
 ## Environment / Config Notes
 
 - **Database name:** `meeting_assistant`
@@ -258,9 +296,10 @@ Issues actually encountered and fixed while building this phase, in case they re
 
 ---
 
-## Next Steps (Phase 5 Preview)
+## Next Steps (Remaining Phase 5 items / Phase 6 Preview)
 
-- Meeting history page (list/search/filter past meetings properly, beyond the simple dashboard list)
-- Search meetings by filename, date, or transcript content
+- Search/filter meetings by filename, date, or transcript content
 - Export meeting notes (summary + action items + deadlines) as PDF
-- Consider basic team/workspace features if time permits
+- Share individual meeting notes outside the app (e.g. shareable link)
+- Speaker diarization ("who said what") — the one original AI feature not yet built; requires a separate diarization step beyond Whisper alone
+- Clean up old test `FAILED` meetings from the database (cosmetic, not functional)
