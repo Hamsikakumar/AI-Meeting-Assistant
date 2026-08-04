@@ -11,5 +11,6 @@ public record MeetingResponse(
     String transcript,
     String summary,
     String actionItems,
-    String deadlines
+    String deadlines,
+    String speakerTranscript
 ) {}

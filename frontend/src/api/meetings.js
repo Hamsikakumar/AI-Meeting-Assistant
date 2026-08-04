@@ -24,6 +24,22 @@ export async function uploadMeeting(file) {
   return res.json();
 }
 
+export async function identifySpeakers(id) {
+  const res = await fetch(`${API_BASE}/meetings/${id}/identify-speakers`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Speaker identification failed");
+  }
+
+  return res.json();
+}
+
 export async function getMeetings() {
   const res = await fetch(`${API_BASE}/meetings`, {
     headers: {
@@ -53,3 +69,4 @@ export async function summarizeMeeting(id) {
 
   return res.json();
 }
+

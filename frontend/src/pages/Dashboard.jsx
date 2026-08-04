@@ -1,17 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { uploadMeeting, getMeetings, summarizeMeeting } from "../api/meetings";
+import { uploadMeeting, getMeetings, summarizeMeeting, identifySpeakers } from "../api/meetings";
 import { createTeam, joinTeam, getMyTeam, leaveTeam } from "../api/teams";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [team, setTeam] = useState(null);
-  const [teamNameInput, setTeamNameInput] = useState("");
-  const [inviteCodeInput, setInviteCodeInput] = useState("");
-  const [teamError, setTeamError] = useState("");
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB, matches backend/Groq limit
 
   const [meetings, setMeetings] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -19,12 +16,18 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState(null);
   const [summarizingId, setSummarizingId] = useState(null);
+  const [identifyingId, setIdentifyingId] = useState(null);
+
+  const [team, setTeam] = useState(null);
+  const [teamNameInput, setTeamNameInput] = useState("");
+  const [inviteCodeInput, setInviteCodeInput] = useState("");
+  const [teamError, setTeamError] = useState("");
 
   const pollingRef = useRef(null);
-  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB, matches backend/Groq limit
 
   useEffect(() => {
     loadMeetings();
+    loadTeam();
 
     pollingRef.current = setInterval(() => {
       loadMeetings();
@@ -41,9 +44,6 @@ export default function Dashboard() {
       setError(err.message);
     }
   }
-  useEffect(() => {
-    loadTeam();
-  }, []);
 
   async function loadTeam() {
     try {
@@ -69,6 +69,32 @@ export default function Dashboard() {
       setError(err.message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleSummarize(id) {
+    setSummarizingId(id);
+    setError("");
+    try {
+      await summarizeMeeting(id);
+      await loadMeetings();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSummarizingId(null);
+    }
+  }
+
+  async function handleIdentifySpeakers(id) {
+    setIdentifyingId(id);
+    setError("");
+    try {
+      await identifySpeakers(id);
+      await loadMeetings();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIdentifyingId(null);
     }
   }
 
@@ -108,19 +134,6 @@ export default function Dashboard() {
     }
   }
 
-  async function handleSummarize(id) {
-    setSummarizingId(id);
-    setError("");
-    try {
-      await summarizeMeeting(id);
-      await loadMeetings();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSummarizingId(null);
-    }
-  }
-
   function handleLogout() {
     clearInterval(pollingRef.current);
     logout();
@@ -148,7 +161,6 @@ export default function Dashboard() {
       </div>
 
       <hr style={{ margin: "24px 0" }} />
-      <hr style={{ margin: "24px 0" }} />
 
       <h3>Team</h3>
       {team ? (
@@ -158,51 +170,53 @@ export default function Dashboard() {
           <button onClick={handleLeaveTeam}>Leave Team</button>
         </div>
       ) : (
-      <div>
-        <form onSubmit={handleCreateTeam} style={{ marginBottom: 10 }}>
-          <input
-            type="text"
-            placeholder="Team name"
-            value={teamNameInput}
-            onChange={(e) => setTeamNameInput(e.target.value)}
-          />
-          <button type="submit" style={{ marginLeft: 8 }}>Create Team</button>
-        </form>
-        <form onSubmit={handleJoinTeam}>
-          <input
-            type="text"
-            placeholder="Invite code"
-            value={inviteCodeInput}
-            onChange={(e) => setInviteCodeInput(e.target.value)}
-          />
-          <button type="submit" style={{ marginLeft: 8 }}>Join Team</button>
-        </form>
-      </div>
-    )}
-    {teamError && <p style={{ color: "red" }}>{teamError}</p>}
+        <div>
+          <form onSubmit={handleCreateTeam} style={{ marginBottom: 10 }}>
+            <input
+              type="text"
+              placeholder="Team name"
+              value={teamNameInput}
+              onChange={(e) => setTeamNameInput(e.target.value)}
+            />
+            <button type="submit" style={{ marginLeft: 8 }}>Create Team</button>
+          </form>
+          <form onSubmit={handleJoinTeam}>
+            <input
+              type="text"
+              placeholder="Invite code"
+              value={inviteCodeInput}
+              onChange={(e) => setInviteCodeInput(e.target.value)}
+            />
+            <button type="submit" style={{ marginLeft: 8 }}>Join Team</button>
+          </form>
+        </div>
+      )}
+      {teamError && <p style={{ color: "red" }}>{teamError}</p>}
+
+      <hr style={{ margin: "24px 0" }} />
 
       <h3>Upload a Meeting Recording</h3>
       <form onSubmit={handleUpload}>
         <input
-         type="file"
-        accept="audio/*,video/*"
-        onChange={(e) => {
-          const file = e.target.files[0];
-          if (!file) return;
+          type="file"
+          accept="audio/*,video/*"
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-          if (file.size > MAX_FILE_SIZE) {
-            setError(
-              `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 25MB.`
-            );
-            setSelectedFile(null);
-            e.target.value = ""; // reset the input so the same oversized file can be re-picked after fixing
-            return;
-          }
+            if (file.size > MAX_FILE_SIZE) {
+              setError(
+                `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 25MB.`
+              );
+              setSelectedFile(null);
+              e.target.value = "";
+              return;
+            }
 
-          setError("");
-          setSelectedFile(file);
-        }}
-      />
+            setError("");
+            setSelectedFile(file);
+          }}
+        />
         <button type="submit" disabled={!selectedFile || uploading} style={{ marginLeft: 12 }}>
           {uploading ? "Uploading..." : "Upload"}
         </button>
@@ -274,10 +288,32 @@ export default function Dashboard() {
                       {summarizingId === m.id ? "Generating summary..." : "Generate Summary"}
                     </button>
                   ) : (
-                    <div style={{ background: "#f7f7f7", padding: 10, borderRadius: 6 }}>
+                    <div style={{ background: "#f7f7f7", padding: 10, borderRadius: 6, marginBottom: 8 }}>
                       <p><strong>Summary:</strong> {m.summary}</p>
                       <p><strong>Action Items:</strong> {m.actionItems}</p>
                       <p><strong>Deadlines:</strong> {m.deadlines}</p>
+                    </div>
+                  )}
+
+                  {!m.speakerTranscript ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleIdentifySpeakers(m.id);
+                      }}
+                      disabled={identifyingId === m.id}
+                      style={{ marginTop: 6 }}
+                    >
+                      {identifyingId === m.id
+                        ? "Identifying speakers... (this can take a minute)"
+                        : "Identify Speakers"}
+                    </button>
+                  ) : (
+                    <div style={{ background: "#fff8f0", padding: 10, borderRadius: 6, marginTop: 8 }}>
+                      <p><strong>Who Said What:</strong></p>
+                      <p style={{ whiteSpace: "pre-wrap", fontSize: 14, lineHeight: 1.6 }}>
+                        {m.speakerTranscript}
+                      </p>
                     </div>
                   )}
                 </div>

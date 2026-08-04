@@ -45,4 +45,7 @@ public class Meeting {
     @ManyToOne
     @JoinColumn(name = "team_id", nullable = true)
     private Team team;
+
+    @Column(columnDefinition = "TEXT")
+    private String speakerTranscript;
 }

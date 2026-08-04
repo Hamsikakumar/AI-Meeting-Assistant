@@ -66,7 +66,8 @@ public class MeetingService {
             meeting.getTranscript(),
             meeting.getSummary(),
             meeting.getActionItems(),
-            meeting.getDeadlines()
+            meeting.getDeadlines(),
+            meeting.getSpeakerTranscript()
         );
     }
 }

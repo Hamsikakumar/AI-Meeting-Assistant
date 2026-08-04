@@ -3,6 +3,7 @@ package com.meetingassistent.backend.controller;
 import com.meetingassistent.backend.dto.MeetingResponse;
 import com.meetingassistent.backend.model.Meeting;
 import com.meetingassistent.backend.model.User;
+import com.meetingassistent.backend.service.DiarizationService;
 import com.meetingassistent.backend.service.MeetingService;
 import com.meetingassistent.backend.service.SummaryService;
 
@@ -39,5 +40,13 @@ public class MeetingController {
     @GetMapping
     public ResponseEntity<List<MeetingResponse>> getMeetings(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(meetingService.getMeetingsForUser(user));
+    }
+
+    @Autowired private DiarizationService diarizationService;
+
+    @PostMapping("/{id}/identify-speakers")
+    public ResponseEntity<MeetingResponse> identifySpeakers(@PathVariable Long id) {
+        Meeting meeting = diarizationService.identifySpeakers(id);
+        return ResponseEntity.ok(meetingService.toResponseDto(meeting));
     }
 }
